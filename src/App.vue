@@ -9,6 +9,7 @@ const router = useRouter()
 const isAuthenticated = computed(() => auth.isAuthenticated.value)
 const userName = computed(() => auth.userName.value || 'Пользователь')
 const isLoading = computed(() => auth.isLoading.value)
+const isAdmin = computed(() => auth.role.value === 'admin')
 
 onMounted(() => {
   auth.initialize()
@@ -29,22 +30,17 @@ const handleLogout = async () => {
   <div class="layout">
     <header class="layout__header">
       <nav class="nav">
-        <div class="nav__group">
+        <div class="nav__group" v-if="isAdmin">
           <RouterLink class="nav__link" to="/scheduler">Scheduler</RouterLink>
           <RouterLink class="nav__link" to="/locations">Locations</RouterLink>
           <RouterLink class="nav__link" to="/users">Users</RouterLink>
         </div>
-        <div class="nav__group nav__group--auth">
-          <template v-if="isAuthenticated">
-            <span class="nav__user">{{ userName }}</span>
-            <button class="nav__link nav__button" type="button" @click="handleLogout" :disabled="isLoading">
-              Выйти
-            </button>
-          </template>
-          <template v-else>
-            <RouterLink class="nav__link" to="/login">Вход</RouterLink>
-            <RouterLink class="nav__link" to="/register">Регистрация</RouterLink>
-          </template>
+        <div class="nav__spacer" />
+        <div class="nav__group nav__group--auth" v-if="isAuthenticated">
+          <span class="nav__user">{{ userName }}</span>
+          <button class="nav__link nav__button" type="button" @click="handleLogout" :disabled="isLoading">
+            Выйти
+          </button>
         </div>
       </nav>
     </header>
@@ -83,6 +79,10 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.nav__spacer {
+  flex: 1;
 }
 
 .nav__group--auth {

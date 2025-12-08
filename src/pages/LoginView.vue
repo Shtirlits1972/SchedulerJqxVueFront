@@ -52,6 +52,8 @@ const submit = async () => {
         <button class="auth__button" type="submit" :disabled="isLoading">
           {{ isLoading ? 'Входим…' : 'Войти' }}
         </button>
+
+        <RouterLink class="auth__link" to="/register">Нет аккаунта? Зарегистрироваться</RouterLink>
       </form>
     </div>
   </section>
@@ -149,5 +151,17 @@ const submit = async () => {
 
 .auth__button:not(:disabled):active {
   transform: translateY(1px);
+}
+
+.auth__link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: #2563eb;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth__link:hover {
+  text-decoration: underline;
 }
 </style>

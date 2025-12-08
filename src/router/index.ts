@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuth } from '../stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,6 +38,25 @@ const router = createRouter({
       redirect: { name: 'scheduler' },
     },
   ],
+})
+
+router.beforeEach(async (to) => {
+  const auth = useAuth()
+  if (!auth.initialized.value) {
+    await auth.initialize()
+  }
+  auth.dropExpiredToken()
+
+  const isAuth = auth.isAuthenticated.value
+  if (!isAuth && to.name !== 'login' && to.name !== 'register') {
+    return { name: 'login' }
+  }
+
+  if (isAuth && (to.name === 'login' || to.name === 'register')) {
+    return { name: 'scheduler' }
+  }
+
+  return true
 })
 
 export default router
