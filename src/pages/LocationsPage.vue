@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, shallowRef } from 'vue'
-// @ts-expect-error библиотека не публикует готовые типы для Vue-компонентов
 import JqxGrid from 'jqwidgets-scripts/jqwidgets-vue3/vue_jqxgrid.vue'
-// @ts-expect-error библиотека не публикует готовые типы для Vue-компонентов
 import JqxWindow from 'jqwidgets-scripts/jqwidgets-vue3/vue_jqxwindow.vue'
 import { useAuth } from '../stores/auth'
 import { getApiBaseUrl } from '../config/api'

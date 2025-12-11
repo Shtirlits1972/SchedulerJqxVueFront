@@ -22,7 +22,8 @@
     "types": [],
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "jqwidgets-scripts/jqwidgets-vue3/vue_jqxscheduler.vue": ["./src/types/stubs/vue_jqxscheduler.d.ts"]
     }
   },
   "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],

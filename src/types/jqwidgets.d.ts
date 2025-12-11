@@ -10,6 +10,11 @@ declare module 'jqwidgets-scripts/jqwidgets-vue3/vue_jqxwindow.vue' {
   export default component
 }
 
+declare module 'jqwidgets-scripts/jqwidgets-vue3/vue_jqxscheduler.vue' {
+  const component: DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>
+  export default component
+}
+
 declare module 'jqwidgets-scripts/jqwidgets-vue3/*' {
   const component: DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>
   export default component

@@ -12,10 +12,16 @@ declare module 'jqwidgets-scripts/jqwidgets-vue3/vue_jqxwindow.vue' {
   export default component
 }
 
+declare module 'jqwidgets-scripts/jqwidgets-vue3/vue_jqxscheduler.vue' {
+  import type { DefineComponent } from 'vue'
+  const component: DefineComponent<Record<string, unknown>, Record<string, unknown>, any>
+  export default component
+}
+
 declare global {
   interface Window {
-    jqx?: any
-    JQXLite?: any
+    jqx?: unknown
+    JQXLite?: unknown
   }
 }
 
