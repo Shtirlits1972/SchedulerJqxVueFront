@@ -7,7 +7,7 @@
     :source="dataAdapter"
     :date="date"
     :showLegend="true"
-    :view="'weekView'"
+    :view="'monthView'"
     :appointmentDataFields="appointmentDataFields"
     :views="views"
   />

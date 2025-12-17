@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, shallowRef } from 'vue'
+import { onMounted, reactive, ref, shallowRef } from 'vue'
 import JqxGrid from 'jqwidgets-scripts/jqwidgets-vue3/vue_jqxgrid.vue'
 import JqxWindow from 'jqwidgets-scripts/jqwidgets-vue3/vue_jqxwindow.vue'
 import { useAuth } from '../stores/auth'
@@ -46,7 +46,7 @@ const form = reactive<{ id: number | null; nameLocation: string }>({
   nameLocation: '',
 })
 
-const token = computed(() => auth.token.value ?? '')
+const token = auth.token
 
 const source = {
   datatype: 'array',
