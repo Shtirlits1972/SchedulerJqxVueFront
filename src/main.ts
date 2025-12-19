@@ -11,6 +11,10 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
+import { patchJqxInputInlineAutoCompleteCrash } from './config/jqxPatches'
+
+// Патчим известный баг jqxInput (inlineAutoComplete -> падение на `...reading 'style'`).
+patchJqxInputInlineAutoCompleteCrash()
 
 const app = createApp(App)
 

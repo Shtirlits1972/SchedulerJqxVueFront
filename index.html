@@ -7,6 +7,18 @@
     <title>Vite App</title>
     <!-- Load jqwidgets globally to avoid bundling/minification issues -->
     <script src="/jqx-all.js"></script>
+    <!--
+      Globalize нужен ДО подключения culture-файла, иначе будет ошибка:
+      "Cannot read properties of undefined (reading 'addCultureInfo')".
+
+      Культура ru-RU для Globalize (jqxWidgets).
+      Нужна для корректной русификации календарей (jqxDateTimeInput/jqxCalendar) и 24-часового времени.
+      Источники (копии лежат в /public):
+      - node_modules/jqwidgets-scripts/jqwidgets/globalization/globalize.js
+      - node_modules/jqwidgets-scripts/jqwidgets/globalization/globalize.culture.ru-RU.js
+    -->
+    <script src="/globalize.js"></script>
+    <script src="/globalize.culture.ru-RU.js"></script>
   </head>
   <body>
     <div id="app"></div>
