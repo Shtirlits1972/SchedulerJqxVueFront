@@ -17,6 +17,7 @@
     :contextMenuItemClick="contextMenuItemClick"
     :contextMenuOpen="contextMenuOpen"
     :contextMenuClose="contextMenuClose"
+    :renderAppointment="renderAppointment"
   />
 
   <!-- Окно-подтверждение удаления (с кнопками "Да" / "Нет"). -->
@@ -220,6 +221,7 @@ type ScheduleEvent = {
   subject: string
   description: string
   status: string
+  color: string
 }
 
 type ScheduleEventCreateRequest = {
@@ -233,11 +235,13 @@ type ScheduleEventCreateRequest = {
   subject: string
   description: string
   status: string
+  color: string
 }
 
 type LocationRow = {
   id: number
   nameLocation: string
+  color: string
 }
 
 type UserRow = {
@@ -333,9 +337,11 @@ type EditEventForm = {
   subject: string
   description: string
   status: string
+  color: string
 }
 
 const STATUS_OPTIONS = ['Free', 'Tentative', 'Busy', 'Out of office'] as const
+const DEFAULT_EVENT_COLOR = '#0078D4'
 
 const editForm = reactive<EditEventForm>({
   masterId: '',
@@ -345,6 +351,7 @@ const editForm = reactive<EditEventForm>({
   subject: '',
   description: '',
   status: STATUS_OPTIONS[0],
+  color: DEFAULT_EVENT_COLOR,
 })
 
 const toNativeDate = (value: unknown): Date | null => {
@@ -364,6 +371,67 @@ const toNativeDate = (value: unknown): Date | null => {
   }
 
   return null
+}
+
+const normalizeHexColor = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const normalized = trimmed.toLowerCase()
+  const withoutHash = normalized.startsWith('#') ? normalized.slice(1) : normalized
+  const withoutPrefix = withoutHash.startsWith('0x') ? withoutHash.slice(2) : withoutHash
+
+  if (/^[0-9a-f]{6}$/.test(withoutPrefix)) return `#${withoutPrefix}`.toUpperCase()
+
+  if (/^[0-9a-f]{8}$/.test(withoutPrefix)) {
+    return `#${withoutPrefix.slice(-6)}`.toUpperCase()
+  }
+
+  return null
+}
+
+const getContrastingTextColor = (hexColor: string) => {
+  const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hexColor)
+  if (!match) return '#0f172a'
+
+  const rHex = match[1]
+  const gHex = match[2]
+  const bHex = match[3]
+  if (!rHex || !gHex || !bHex) return '#0f172a'
+
+  const r = parseInt(rHex, 16)
+  const g = parseInt(gHex, 16)
+  const b = parseInt(bHex, 16)
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000
+  return yiq >= 160 ? '#0f172a' : '#ffffff'
+}
+
+type AppointmentRenderData = {
+  appointment: unknown
+  textColor: string
+  background: string
+  borderColor: string
+  html: string
+  cssClass: string
+  style: string
+  width: number
+  height: number
+  view: string
+}
+
+const renderAppointment = (data: AppointmentRenderData) => {
+  const record =
+    typeof data.appointment === 'object' && data.appointment !== null ? (data.appointment as Record<string, unknown>) : {}
+  const color = normalizeHexColor(record.color)
+  if (!color) return data
+
+  return {
+    ...data,
+    background: color,
+    borderColor: color,
+    textColor: getContrastingTextColor(color),
+  }
 }
 
 // Идентификаторы пунктов контекстного меню (используются в обработчиках).
@@ -498,6 +566,7 @@ const openEditWindow = (mode: EditWindowMode, appointmentId?: string | number, a
     editForm.description = ''
     // Статус тоже обязателен, поэтому по умолчанию оставляем пустым и просим пользователя выбрать.
     editForm.status = ''
+    editForm.color = DEFAULT_EVENT_COLOR
   } else {
     const record = typeof appointment === 'object' && appointment !== null ? (appointment as Record<string, unknown>) : {}
 
@@ -512,6 +581,11 @@ const openEditWindow = (mode: EditWindowMode, appointmentId?: string | number, a
     editForm.subject = String(record.subject ?? '')
     editForm.description = String(record.description ?? '')
     editForm.status = String(record.status ?? STATUS_OPTIONS[0])
+    const locationId = Number(editForm.locationId)
+    const locationColor = Number.isFinite(locationId)
+      ? normalizeHexColor(locationsSource.localdata.find((row) => row.id === locationId)?.color)
+      : null
+    editForm.color = locationColor ?? normalizeHexColor(record.color) ?? DEFAULT_EVENT_COLOR
 
     const startCandidate =
       record.start_event ?? record.from ?? record.start ?? record.startDate ?? record.dateFrom
@@ -589,6 +663,9 @@ const validateCreateForm = ():
     return { ok: false, message: 'Дата/время окончания должно быть больше даты/времени начала.' }
   }
 
+  const color = normalizeHexColor(location.color) ?? DEFAULT_EVENT_COLOR
+  editForm.color = color
+
   return {
     ok: true,
     payload: {
@@ -602,6 +679,7 @@ const validateCreateForm = ():
       subject: editForm.subject.trim(),
       description: editForm.description.trim(),
       status: statusRaw,
+      color,
     },
   }
 }
@@ -624,6 +702,7 @@ const parseScheduleEvent = (raw: unknown): ScheduleEvent | null => {
     subject: String(record.subject ?? ''),
     description: String(record.description ?? ''),
     status: String(record.status ?? ''),
+    color: String(record.color ?? ''),
   }
 }
 
@@ -671,6 +750,7 @@ const createScheduleEvent = async (payload: ScheduleEventCreateRequest): Promise
       return null
     }
 
+    created.color = payload.color
     return created
   } catch (error) {
     console.error('[scheduler] Не удалось создать событие', error)
@@ -709,7 +789,10 @@ const updateScheduleEvent = async (payload: ScheduleEventCreateRequest): Promise
     }
 
     const updated = parseScheduleEvent(parsed)
-    if (updated) return updated
+    if (updated) {
+      updated.color = payload.color
+      return updated
+    }
 
     // Некоторые реализации API возвращают пустое тело/не-JSON при 200.
     // В этом случае считаем, что обновление прошло успешно, и обновляем Scheduler локальными данными.
@@ -848,6 +931,12 @@ const handleLocationSelect = (event: unknown) => {
   const value = item?.value
   if (typeof value === 'string' || typeof value === 'number') {
     editForm.locationId = String(value)
+
+    const locationId = Number(value)
+    if (Number.isFinite(locationId)) {
+      const location = locationsSource.localdata.find((row) => row.id === locationId)
+      editForm.color = normalizeHexColor(location?.color) ?? DEFAULT_EVENT_COLOR
+    }
   }
 }
 
@@ -1027,6 +1116,7 @@ const appointmentDataFields = {
   masterName: 'masterName',
   locationId: 'locationId',
   nameLocation: 'nameLocation',
+  color: 'color',
 }
 
 // Важно: по умолчанию в day/week view таймлайн рисуется в 12-часовом формате ("hh tt"),
@@ -1050,6 +1140,7 @@ const source = {
     { name: 'description', type: 'string' },
     { name: 'subject', type: 'string' },
     { name: 'status', type: 'string' },
+    { name: 'color', type: 'string' },
   ],
   id: 'id',
   localdata: [] as ScheduleEvent[],
@@ -1060,6 +1151,7 @@ const locationsSource = {
   datafields: [
     { name: 'id', type: 'number' },
     { name: 'nameLocation', type: 'string' },
+    { name: 'color', type: 'string' },
   ],
   id: 'id',
   localdata: [] as LocationRow[],
@@ -1111,6 +1203,7 @@ const parseScheduleEvents = (raw: unknown): ScheduleEvent[] => {
       subject: String(record.subject ?? ''),
       description: String(record.description ?? ''),
       status: String(record.status ?? ''),
+      color: String(record.color ?? ''),
     })
   }
 
@@ -1172,6 +1265,7 @@ const parseLocations = (raw: unknown): LocationRow[] => {
     result.push({
       id,
       nameLocation: String(record.nameLocation ?? ''),
+      color: String(record.color ?? record.Color ?? ''),
     })
   }
 
