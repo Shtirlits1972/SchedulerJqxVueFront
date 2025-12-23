@@ -18,6 +18,7 @@
     :contextMenuOpen="contextMenuOpen"
     :contextMenuClose="contextMenuClose"
     :renderAppointment="renderAppointment"
+    @appointmentChange="handleAppointmentChange"
   />
 
   <!-- Окно-подтверждение удаления (с кнопками "Да" / "Нет"). -->
@@ -986,6 +987,116 @@ const handleDateTimeInputOpen = () => {
     setTimeout(() => {
       applyDateTimeLocalization()
     }, 0)
+  }
+}
+
+type SchedulerAppointmentChangeEvent = {
+  args?: {
+    appointment?: unknown
+  }
+}
+
+const appointmentChangeInFlightIds = new Set<number>()
+
+const handleAppointmentChange = async (event: unknown) => {
+  if (isSavingEditWindow.value) return
+
+  const appointment = (event as SchedulerAppointmentChangeEvent | null)?.args?.appointment
+  if (typeof appointment !== 'object' || appointment === null) return
+
+  const boundAppointment = appointment as Record<string, unknown>
+  const rawId = boundAppointment.id
+  const appointmentId = typeof rawId === 'string' || typeof rawId === 'number' ? Number(rawId) : NaN
+  if (!Number.isFinite(appointmentId)) {
+    console.warn('[scheduler] appointmentChange: не удалось определить id события', boundAppointment)
+    return
+  }
+
+  if (appointmentChangeInFlightIds.has(appointmentId)) return
+  appointmentChangeInFlightIds.add(appointmentId)
+  try {
+    const originalData =
+      typeof boundAppointment.originalData === 'object' && boundAppointment.originalData !== null
+        ? (boundAppointment.originalData as Record<string, unknown>)
+        : null
+
+    const startCandidate = boundAppointment.from ?? originalData?.start_event ?? originalData?.from
+    const endCandidate = boundAppointment.to ?? originalData?.finish_event ?? originalData?.to
+
+    const start = toNativeDate(startCandidate)
+    const end = toNativeDate(endCandidate)
+    if (!(start instanceof Date) || Number.isNaN(start.getTime())) {
+      console.warn('[scheduler] appointmentChange: некорректная дата начала', { appointmentId, startCandidate })
+      return
+    }
+    if (!(end instanceof Date) || Number.isNaN(end.getTime())) {
+      console.warn('[scheduler] appointmentChange: некорректная дата окончания', { appointmentId, endCandidate })
+      return
+    }
+    if (end.getTime() <= start.getTime()) {
+      console.warn('[scheduler] appointmentChange: окончание <= начало', {
+        appointmentId,
+        start: start.toISOString(),
+        end: end.toISOString(),
+      })
+      return
+    }
+
+    const existing = source.localdata.find((item) => item.id === appointmentId) ?? null
+    const previousStart = toNativeDate(existing?.start_event)
+    const previousEnd = toNativeDate(existing?.finish_event)
+    if (
+      previousStart &&
+      previousEnd &&
+      previousStart.getTime() === start.getTime() &&
+      previousEnd.getTime() === end.getTime()
+    ) {
+      return
+    }
+
+    const masterId = existing?.masterId ?? Number(originalData?.masterId)
+    const locationId = existing?.locationId ?? Number(originalData?.locationId)
+    if (!Number.isFinite(masterId) || !Number.isFinite(locationId)) {
+      console.warn('[scheduler] appointmentChange: не удалось определить masterId/locationId', {
+        appointmentId,
+        masterId,
+        locationId,
+        originalData,
+      })
+      return
+    }
+
+    const master = usersSource.localdata.find((item) => item.id === masterId)
+    const location = locationsSource.localdata.find((item) => item.id === locationId)
+
+    const color = normalizeHexColor(location?.color) ?? normalizeHexColor(existing?.color) ?? DEFAULT_EVENT_COLOR
+
+    const payload: ScheduleEventCreateRequest = {
+      id: appointmentId,
+      masterId,
+      masterName: master?.usersName ?? (existing?.masterName ?? String(originalData?.masterName ?? '')),
+      locationId,
+      nameLocation: location?.nameLocation ?? (existing?.nameLocation ?? String(originalData?.nameLocation ?? '')),
+      start_event: start.toISOString(),
+      finish_event: end.toISOString(),
+      subject: String(existing?.subject ?? originalData?.subject ?? '').trim(),
+      description: String(existing?.description ?? originalData?.description ?? '').trim(),
+      status: String(existing?.status ?? originalData?.status ?? '').trim(),
+      color,
+    }
+
+    const updated = await updateScheduleEvent(payload)
+    if (!updated) {
+      alert('Не удалось обновить событие после перемещения/изменения длительности. Подробности смотрите в консоли.')
+      // Если изменения уже успели попасть в Scheduler, синхронизируемся с сервером.
+      await fetchScheduleEvents()
+      rebuildSchedulerAdapter()
+      return
+    }
+
+    appendEventToScheduler(updated)
+  } finally {
+    appointmentChangeInFlightIds.delete(appointmentId)
   }
 }
 
