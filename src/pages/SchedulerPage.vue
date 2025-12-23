@@ -7,7 +7,7 @@
     :source="dataAdapter"
     :date="schedulerDate"
     :showLegend="true"
-    :view="'monthView'"
+    :view="schedulerView"
     :appointmentDataFields="appointmentDataFields"
     :views="views"
     :localization="schedulerLocalization"
@@ -19,6 +19,8 @@
     :contextMenuClose="contextMenuClose"
     :renderAppointment="renderAppointment"
     @appointmentChange="handleAppointmentChange"
+    @dateChange="handleSchedulerDateChange"
+    @viewChange="handleSchedulerViewChange"
   />
 
   <!-- Окно-подтверждение удаления (с кнопками "Да" / "Нет"). -->
@@ -299,6 +301,49 @@ const token = auth.token
 
 // Дата для Scheduler должна быть именно jqx.date (иначе внутри Scheduler будет ошибка `clearTime is not a function`).
 const schedulerDate = ref<JqxDateInstance | null>(null)
+type SchedulerViewType = 'dayView' | 'weekView' | 'monthView'
+const schedulerView = ref<SchedulerViewType>('monthView')
+
+const isJqxDateInstance = (value: unknown): value is JqxDateInstance => {
+  if (typeof value !== 'object' || value === null) return false
+  return typeof (value as { toDate?: unknown }).toDate === 'function'
+}
+
+type SchedulerDateChangeEvent = {
+  args?: {
+    date?: unknown
+  }
+}
+
+const handleSchedulerDateChange = (event: unknown) => {
+  const date = (event as SchedulerDateChangeEvent | null)?.args?.date
+  if (isJqxDateInstance(date)) {
+    schedulerDate.value = date
+  }
+}
+
+type SchedulerViewChangeEvent = {
+  args?: {
+    date?: unknown
+    newViewType?: unknown
+  }
+}
+
+const isSchedulerViewType = (value: unknown): value is SchedulerViewType =>
+  value === 'dayView' || value === 'weekView' || value === 'monthView'
+
+const handleSchedulerViewChange = (event: unknown) => {
+  const args = (event as SchedulerViewChangeEvent | null)?.args
+  if (!args) return
+
+  if (isSchedulerViewType(args.newViewType)) {
+    schedulerView.value = args.newViewType
+  }
+
+  if (isJqxDateInstance(args.date)) {
+    schedulerDate.value = args.date
+  }
+}
 
 // Локализация для jqxDateTimeInput.
 // У этого виджета структура отличается от Scheduler-а: нужные нам названия лежат в localization.calendar.*.
@@ -1235,7 +1280,9 @@ const appointmentDataFields = {
 const views = [
   { type: 'dayView', timeRuler: { formatString: 'HH:mm' } },
   { type: 'weekView', timeRuler: { formatString: 'HH:mm' } },
-  { type: 'monthView' },
+  // В month view время в tooltip по умолчанию форматируется как "hh:mm" (12-часовой формат).
+  // Передаём formatString, чтобы и там было 24 часа.
+  { type: 'monthView', timeRuler: { formatString: 'HH:mm' } },
 ]
 
 const source = {
